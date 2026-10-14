@@ -11,7 +11,7 @@
         h1 { font-size: 1.8rem; margin: 10px 0; color: #004085; }
         h3 { font-size: 1.2rem; color: #0056b3; }
 
-        .calc-btn { min-width: 45px; height: 45px; font-size: 18px; margin: 3px; padding: 0 8px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; user-select: none; white-space: nowrap; }
+        .calc-btn { width: 50px; height: 45px; font-size: 18px; margin: 3px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; user-select: none; }
         .calc-btn:active { background: #0056b3; }
         
         input, select, button.main-btn { padding: 10px; font-size: 16px; border-radius: 5px; margin: 5px; width: 100%; max-width: 320px; border: 1px solid #ccc; }
@@ -24,7 +24,6 @@
         #message { font-size: 1rem; color: #004085; font-weight: bold; margin: 10px 0; padding: 10px; background: #d1ecf1; border-radius: 8px; display: block; border: 1px solid #bee5eb; }
         .version-tag { position: fixed; bottom: 5px; right: 10px; font-size: 12px; color: #666; background: rgba(255,255,255,0.8); padding: 4px 8px; border-radius: 4px; }
         
-        #timer-box { font-size: 16px; color: #004085; font-weight: bold; margin-top: 5px; }
         #pass-status { font-size: 14px; color: #e65100; font-weight: bold; margin: 5px; }
 
         .lobby-container { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; align-items: center; }
@@ -33,11 +32,6 @@
         .ranking-list, .room-list { max-height: 160px; overflow-y: auto; font-size: 14px; }
         .room-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
 
-        @keyframes celebration {
-            0% { transform: translate(-50%, -50%) scale(0.5) rotate(-5deg); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.1) rotate(3deg); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
-        }
         .victory-banner {
             display: none;
             position: fixed;
@@ -47,16 +41,15 @@
             background: linear-gradient(135deg, #0056b3, #007bff, #6cb2eb);
             color: white;
             padding: 20px;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: bold;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 86, 179, 0.5);
             z-index: 999;
-            animation: celebration 0.6s ease-out forwards;
             border: 4px solid white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             width: 90%;
-            max-width: 400px;
+            max-width: 420px;
         }
 
         @media (min-width: 768px) {
@@ -67,9 +60,13 @@
 </head>
 <body>
 
-    <div id="victory-banner" class="victory-banner">🏆 👑 BATTLE FINISHED! 👑 🏆<br><span id="victory-text" style="font-size: 1.1rem;"></span></div>
+    <div id="victory-banner" class="victory-banner">
+        🏆 👑 試合終了！ 👑 🏆<br>
+        <span id="victory-text" style="font-size: 1.1rem; display: block; margin: 10px 0;"></span>
+        <div id="rating-result-box" style="font-size: 0.95rem; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; text-align: left;"></div>
+    </div>
 
-    <!-- 1. ログイン・新規登録画面 -->
+    <!-- 1. ログイン画面 -->
     <div id="screen-auth" class="screen active">
         <h1>🔢 素因数分解オンライン 🔢</h1>
         <div style="background: white; display: inline-block; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 350px;">
@@ -127,7 +124,6 @@
             <br>
             <div id="host-controls" style="display: none;">
                 <button class="main-btn" onclick="startTheGame()" style="background: #28a745; font-size: 18px;">ゲーム開始！</button>
-                <p style="font-size: 12px; color: #666;">※メンバーが集まったらホストが押してスタートできます</p>
             </div>
             <div id="guest-controls">
                 <p style="color: #666; font-size: 14px;">ホストがゲームを開始するのを待っています...</p>
@@ -140,35 +136,55 @@
     <div id="screen-game" class="screen">
         <h2 id="room-info" style="font-size: 1.3rem;">ラウンド 1</h2>
         <div id="message">読み込み中...</div>
-        <div id="timer-box"></div>
         <div id="pass-status"></div>
         
-        <div style="margin: 20px 0; background: #eef6ff; padding: 20px; border-radius: 12px; border: 2px dashed #007bff;">
+        <div style="margin: 15px 0; background: #eef6ff; padding: 15px; border-radius: 12px; border: 2px dashed #007bff;">
             <div style="font-size: 14px; color: #555;">お題の数</div>
-            <div id="target-number" style="font-size: 3rem; font-weight: bold; color: #0056b3;">---</div>
+            <div id="target-number" style="font-size: 2.5rem; font-weight: bold; color: #0056b3;">---</div>
         </div>
 
+        <!-- プレイヤーごとのスコア表示 -->
+        <div id="scoreboard" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 15px; font-size: 14px; font-weight: bold;"></div>
+
         <div style="margin-top: 10px;">
-            <input type="text" id="expression" style="width: 100%; max-width: 350px; text-align: center; font-size: 20px;" placeholder="例: 2*3*5"><br>
-            <div style="margin: 8px 0;">
-                <button class="calc-btn" onclick="appendExpr('2')">2</button>
-                <button class="calc-btn" onclick="appendExpr('3')">3</button>
-                <button class="calc-btn" onclick="appendExpr('5')">5</button>
-                <button class="calc-btn" onclick="appendExpr('7')">7</button>
-                <button class="calc-btn" onclick="appendExpr('11')">11</button>
-                <button class="calc-btn" onclick="appendExpr('*')">*</button>
-                <button class="calc-btn" onclick="backspaceExpr()" style="background:#6c757d;" title="1文字消す">←</button>
-                <button class="calc-btn" onclick="clearExpr()" style="background:#343a40;">クリア</button>
+            <input type="text" id="expression" style="width: 100%; max-width: 320px; text-align: center; font-size: 20px;" placeholder="例: 2*3*13"><br>
+            
+            <!-- テンキー -->
+            <div style="margin: 8px auto; max-width: 320px;">
+                <div>
+                    <button class="calc-btn" onclick="appendExpr('7')">7</button>
+                    <button class="calc-btn" onclick="appendExpr('8')">8</button>
+                    <button class="calc-btn" onclick="appendExpr('9')">9</button>
+                </div>
+                <div>
+                    <button class="calc-btn" onclick="appendExpr('4')">4</button>
+                    <button class="calc-btn" onclick="appendExpr('5')">5</button>
+                    <button class="calc-btn" onclick="appendExpr('6')">6</button>
+                </div>
+                <div>
+                    <button class="calc-btn" onclick="appendExpr('1')">1</button>
+                    <button class="calc-btn" onclick="appendExpr('2')">2</button>
+                    <button class="calc-btn" onclick="appendExpr('3')">3</button>
+                </div>
+                <div>
+                    <button class="calc-btn" onclick="appendExpr('0')">0</button>
+                    <button class="calc-btn" onclick="appendExpr('*')" style="background:#ff8c00;">*</button>
+                    <button class="calc-btn" onclick="backspaceExpr()" style="background:#6c757d;">←</button>
+                </div>
+                <div>
+                    <button class="calc-btn" onclick="clearExpr()" style="background:#343a40; width: 162px;">クリア</button>
+                </div>
             </div>
+
             <button id="submit-btn" class="main-btn" onclick="sendCalc()" style="font-size: 16px; background: #28a745; width: 100%; max-width: 320px;">解答を送信する！</button>
             <button id="pass-btn" class="main-btn" onclick="togglePass()" style="font-size: 14px; background: #ff8c00; width: 100%; max-width: 320px;">パスを希望する</button>
-            <button id="giveup-btn" class="main-btn" onclick="confirmLeaveGame()" style="font-size: 14px; background: #dc3545; width: 100%; max-width: 320px;">退出する（レートが下がります）</button>
+            <button id="giveup-btn" class="main-btn" onclick="confirmLeaveGame()" style="font-size: 14px; background: #dc3545; width: 100%; max-width: 320px;">退出する</button>
             <br>
             <button id="back-lobby-btn" class="main-btn" onclick="returnToLobby()" style="background: #6c757d; display: none; width: 100%; max-width: 320px;">ロビーに戻る</button>
         </div>
     </div>
 
-    <div class="version-tag">v2.0.0</div>
+    <div class="version-tag">v2.0.2</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -177,7 +193,6 @@
         let currentRoomId = null;
         let isPassRequested = false;
 
-        // セッション復元
         window.addEventListener('load', () => {
             const savedUserId = localStorage.getItem('prime_user_id');
             if (savedUserId) {
@@ -200,12 +215,10 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
             const msgEl = document.getElementById('auth-msg');
-
             if (!username || !password) {
-                msgEl.innerText = 'ユーザー名とパスワードを入力してください。';
+                msgEl.innerText = '入力してください。';
                 return;
             }
-
             try {
                 const res = await fetch(`/api/${type}`, {
                     method: 'POST',
@@ -222,7 +235,7 @@
                     msgEl.innerText = data.message;
                 }
             } catch (err) {
-                msgEl.innerText = '通信エラーが発生しました。';
+                msgEl.innerText = '通信エラー';
             }
         }
 
@@ -242,9 +255,7 @@
         }
 
         function startTheGame() {
-            if (currentRoomId) {
-                socket.emit('startGame', { roomId: currentRoomId });
-            }
+            if (currentRoomId) socket.emit('startGame', { roomId: currentRoomId });
         }
 
         function leaveRoom() {
@@ -257,12 +268,11 @@
         }
 
         function confirmLeaveGame() {
-            if (confirm('本当に退出しますか？（ペナルティとしてレートが下がります）')) {
-                leaveRoom();
-            }
+            if (confirm('本当に退出しますか？')) leaveRoom();
         }
 
         function returnToLobby() {
+            document.getElementById('victory-banner').style.display = 'none';
             currentRoomId = null;
             showScreen('screen-lobby');
             socket.emit('requestLobbyData');
@@ -297,25 +307,16 @@
             if (!currentRoomId) return;
             isPassRequested = !isPassRequested;
             const passBtn = document.getElementById('pass-btn');
-            if (isPassRequested) {
-                passBtn.style.background = '#6c757d';
-                passBtn.innerText = 'パス希望をキャンセル';
-            } else {
-                passBtn.style.background = '#ff8c00';
-                passBtn.innerText = 'パスを希望する';
-            }
+            passBtn.style.background = isPassRequested ? '#6c757d' : '#ff8c00';
+            passBtn.innerText = isPassRequested ? 'パス希望キャンセル' : 'パスを希望する';
             socket.emit('requestPass', { roomId: currentRoomId, pass: isPassRequested });
         }
 
-        socket.on('notify', (msg) => {
-            alert(msg);
-        });
+        socket.on('notify', (msg) => alert(msg));
 
         socket.on('joinedRoom', (room) => {
             currentRoomId = room.roomId;
             isPassRequested = false;
-            document.getElementById('pass-btn').style.background = '#ff8c00';
-            document.getElementById('pass-btn').innerText = 'パスを希望する';
             showScreen('screen-room');
             updateRoomView(room);
         });
@@ -333,20 +334,9 @@
         function updateRoomView(room) {
             document.getElementById('room-host-msg').innerText = `ホスト: ${room.hostName}`;
             document.getElementById('room-diff-display').innerText = `難易度: ${room.difficultyLabel}`;
-            
-            const membersList = document.getElementById('room-members-list');
-            membersList.innerHTML = room.players.map(p => `<div>👤 ${p.username} (Rate: ${p.rating})</div>`).join('');
-
-            const hostControls = document.getElementById('host-controls');
-            const guestControls = document.getElementById('guest-controls');
-
-            if (room.hostId === socket.id) {
-                hostControls.style.display = 'block';
-                guestControls.style.display = 'none';
-            } else {
-                hostControls.style.display = 'none';
-                guestControls.style.display = 'block';
-            }
+            document.getElementById('room-members-list').innerHTML = room.players.map(p => `<div>👤 ${p.username} (Rate: ${p.rating})</div>`).join('');
+            document.getElementById('host-controls').style.display = (room.hostId === socket.id) ? 'block' : 'none';
+            document.getElementById('guest-controls').style.display = (room.hostId === socket.id) ? 'none' : 'block';
         }
 
         function updateGameView(room) {
@@ -354,18 +344,19 @@
             document.getElementById('message').innerText = room.message;
             document.getElementById('target-number').innerText = room.targetNumber;
 
-            const passStatus = document.getElementById('pass-status');
-            const passCount = room.players.filter(p => p.passRequested).length;
-            if (passCount > 0) {
-                passStatus.innerText = `パス希望者: ${passCount}人 / 必要数: ${Math.floor(room.players.length / 2) + 1}人`;
-            } else {
-                passStatus.innerText = '';
-            }
+            // スコアボードの更新
+            const scoreboard = document.getElementById('scoreboard');
+            scoreboard.innerHTML = room.players.map(p => `
+                <div style="background:white; padding:6px 12px; border-radius:6px; border:1px solid #b8daff;">
+                    ${p.username}: <span style="color:#0056b3; font-size:16px;">${p.score}pt</span>
+                </div>
+            `).join('');
 
             const submitBtn = document.getElementById('submit-btn');
             const passBtn = document.getElementById('pass-btn');
             const giveupBtn = document.getElementById('giveup-btn');
             const backLobbyBtn = document.getElementById('back-lobby-btn');
+            const banner = document.getElementById('victory-banner');
 
             if (room.isReviewing || room.isGameOver) {
                 submitBtn.disabled = true;
@@ -378,48 +369,42 @@
             if (room.isGameOver) {
                 giveupBtn.style.display = 'none';
                 backLobbyBtn.style.display = 'inline-block';
-                
-                const banner = document.getElementById('victory-banner');
-                const victoryText = document.getElementById('victory-text');
                 const sorted = [...room.players].sort((a, b) => b.score - a.score);
                 if (sorted.length > 0) {
-                    victoryText.innerText = `勝者: ${sorted[0].username} (スコア: ${sorted[0].score})`;
+                    document.getElementById('victory-text').innerText = `勝者: ${sorted[0].username} 🎉`;
                 }
+
+                // レート変動結果を表示
+                const ratingBox = document.getElementById('rating-result-box');
+                ratingBox.innerHTML = '<strong>【レート変動】</strong><br>' + room.players.map(p => {
+                    const diff = p.ratingChange || 0;
+                    const diffStr = diff >= 0 ? `+${diff}` : `${diff}`;
+                    const color = diff >= 0 ? '#d4edda' : '#f8d7da';
+                    return `<div style="background:${color}; color:#333; margin:3px 0; padding:3px 6px; border-radius:4px;">${p.username}: ${p.rating - diff} → <strong>${p.rating}</strong> (${diffStr})</div>`;
+                }).join('');
+
                 banner.style.display = 'block';
             } else {
                 giveupBtn.style.display = 'inline-block';
                 backLobbyBtn.style.display = 'none';
-                document.getElementById('victory-banner').style.display = 'none';
+                banner.style.display = 'none';
             }
         }
 
         socket.on('lobbyData', (data) => {
-            const welcomeMsg = document.getElementById('welcome-msg');
             if (currentUser) {
-                welcomeMsg.innerText = `ようこそ、${currentUser.username} さん (Rate: ${currentUser.rating})`;
+                document.getElementById('welcome-msg').innerText = `ようこそ、${currentUser.username} さん (Rate: ${currentUser.rating})`;
             }
-
-            const rankingList = document.getElementById('ranking-list');
-            if (data.ranking.length === 0) {
-                rankingList.innerHTML = 'ランキングデータなし';
-            } else {
-                rankingList.innerHTML = data.ranking.map((u, i) => `<div>${i+1}. ${u.username} (${u.rating})</div>`).join('');
-            }
-
-            const roomList = document.getElementById('room-list');
-            if (data.roomList.length === 0) {
-                roomList.innerHTML = '部屋はありません';
-            } else {
-                roomList.innerHTML = data.roomList.map(r => `
-                    <div class="room-item">
-                        <div>
-                            <strong>${r.host}の部屋</strong><br>
-                            <span style="font-size:11px; color:#e65100;">[${r.difficultyLabel}]</span> (${r.playerCount}人) - <span style="color:${r.status === '募集中' ? 'green':'red'}">${r.status}</span>
-                        </div>
-                        ${r.status === '募集中' ? `<button onclick="joinRoom('${r.roomId}')" style="padding:4px 8px; font-size:12px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">参加</button>` : ''}
+            document.getElementById('ranking-list').innerHTML = data.ranking.length === 0 ? 'データなし' : data.ranking.map((u, i) => `<div>${i+1}. ${u.username} (${u.rating})</div>`).join('');
+            document.getElementById('room-list').innerHTML = data.roomList.length === 0 ? '部屋はありません' : data.roomList.map(r => `
+                <div class="room-item">
+                    <div>
+                        <strong>${r.host}の部屋</strong><br>
+                        <span style="font-size:11px; color:#e65100;">[${r.difficultyLabel}]</span> (${r.playerCount}人) - <span style="color:${r.status === '募集中' ? 'green':'red'}">${r.status}</span>
                     </div>
-                `).join('');
-            }
+                    ${r.status === '募集中' ? `<button onclick="joinRoom('${r.roomId}')" style="padding:4px 8px; font-size:12px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">参加</button>` : ''}
+                </div>
+            `).join('');
         });
     </script>
 </body>

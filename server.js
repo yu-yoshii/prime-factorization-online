@@ -11,14 +11,13 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const VERSION = "v2.0.0";
-const MONGO_URL = 'mongodb+srv://e221239_db_user:Y0u667841you@cluster0.yxjjzel.mongodb.net/strawberry_kingdom?retryWrites=true&w=majority&appName=Cluster0';
+const VERSION = "v2.0.2";
+const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://e221239_db_user:Y0u667841you@cluster0.yxjjzel.mongodb.net/strawberry_kingdom?retryWrites=true&w=majority&appName=Cluster0';
 const DB_NAME = 'prime_factorization_online';
 
 let db, usersCollection;
 let rooms = {};
 
-// MongoDB接続とサーバー起動
 async function startServer() {
     try {
         const client = await MongoClient.connect(MONGO_URL);
@@ -36,54 +35,34 @@ async function startServer() {
 
 startServer();
 
-// ユーザー登録 API
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.json({ success: false, message: '入力してください。' });
     
     try {
-        if (!usersCollection) {
-            return res.json({ success: false, message: 'データベースが未接続です。' });
-        }
-
+        if (!usersCollection) return res.json({ success: false, message: 'データベースが未接続です。' });
         const existing = await usersCollection.findOne({ username });
-        if (existing) {
-            return res.json({ success: false, message: 'そのユーザー名は既に使われています。' });
-        }
+        if (existing) return res.json({ success: false, message: 'そのユーザー名は既に使われています。' });
 
-        const result = await usersCollection.insertOne({
-            username,
-            password,
-            rating: 1000
-        });
-
+        const result = await usersCollection.insertOne({ username, password, rating: 1000 });
         res.json({ success: true, user: { id: result.insertedId.toString(), username, rating: 1000 } });
     } catch (err) {
-        console.error('登録エラー詳細:', err);
         res.json({ success: false, message: '登録エラーが発生しました。' });
     }
 });
 
-// ログイン API
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        if (!usersCollection) {
-            return res.json({ success: false, message: 'データベースが未接続です。' });
-        }
-
+        if (!usersCollection) return res.json({ success: false, message: 'データベースが未接続です。' });
         const user = await usersCollection.findOne({ username, password });
-        if (!user) {
-            return res.json({ success: false, message: 'ユーザー名またはパスワードが違います。' });
-        }
+        if (!user) return res.json({ success: false, message: 'ユーザー名またはパスワードが違います。' });
         res.json({ success: true, user: { id: user._id.toString(), username: user.username, rating: user.rating } });
     } catch (err) {
-        console.error('ログインエラー詳細:', err);
         res.json({ success: false, message: 'ログインエラーが発生しました。' });
     }
 });
 
-// 素数判定関数
 function isPrime(n) {
     if (n < 2) return false;
     for (let i = 2; i <= Math.sqrt(n); i++) {
@@ -92,7 +71,6 @@ function isPrime(n) {
     return true;
 }
 
-// 掛け算のみの式を評価するパーサー
 function evaluateMultiplication(expr) {
     let pos = 0;
     function parseNumber() {
@@ -153,9 +131,7 @@ async function broadcastLobbyData() {
 }
 
 function getBaseRatingChange(rankIndex, totalPlayers) {
-    if (totalPlayers === 2) {
-        return rankIndex === 0 ? 24 : -12;
-    }
+    if (totalPlayers === 2) return rankIndex === 0 ? 24 : -12;
     if (rankIndex === 0) return 24;
     if (rankIndex === 1) return 4;
     if (rankIndex === 2) return -8;
@@ -163,13 +139,9 @@ function getBaseRatingChange(rankIndex, totalPlayers) {
 }
 
 io.on('connection', (socket) => {
-    console.log('接続:', socket.id);
-
     socket.on('restoreSession', async (userId, callback) => {
         try {
-            if (!ObjectId.isValid(userId)) {
-                return callback({ success: false });
-            }
+            if (!ObjectId.isValid(userId)) return callback({ success: false });
             const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
             if (!user) {
                 callback({ success: false });
@@ -212,7 +184,8 @@ io.on('connection', (socket) => {
                     username: user.username,
                     rating: user.rating,
                     score: 0,
-                    passRequested: false
+                    passRequested: false,
+                    ratingChange: 0
                 }],
                 targetNumber: 0,
                 currentRound: 1,
@@ -252,7 +225,8 @@ io.on('connection', (socket) => {
                 username: user.username,
                 rating: user.rating,
                 score: 0,
-                passRequested: false
+                passRequested: false,
+                ratingChange: 0
             });
 
             socket.join(roomId);
@@ -266,11 +240,6 @@ io.on('connection', (socket) => {
     socket.on('startGame', ({ roomId }) => {
         const room = rooms[roomId];
         if (!room || room.hostId !== socket.id || room.isGameStarted) return;
-        if (room.players.length < 1) {
-            socket.emit('notify', 'プレイヤーが足りません。');
-            return;
-        }
-
         room.isGameStarted = true;
         room.message = `【${room.difficultyLabel}】対戦開始！ 与えられた数を素因数分解せよ！（3本先取）`;
         initGame(room);
@@ -313,10 +282,7 @@ io.on('connection', (socket) => {
                 throw new Error('数字と「*」以外の文字が含まれています');
             }
 
-            // 使用されている数字の抽出
             const numbers = sanitized.split('*').map(n => parseInt(n, 10));
-            
-            // すべて素数であるかチェック
             for (let num of numbers) {
                 if (!isPrime(num)) {
                     socket.emit('notify', `「${num}」は素数ではありません。すべての因数が素数である必要があります。`);
@@ -324,7 +290,6 @@ io.on('connection', (socket) => {
                 }
             }
 
-            // 計算結果（積）がお題と一致するかチェック
             const result = evaluateMultiplication(sanitized);
 
             if (result === room.targetNumber) {
@@ -339,7 +304,6 @@ io.on('connection', (socket) => {
 
                     if (player.score >= 3) {
                         room.isGameOver = true;
-                        
                         const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score);
                         const totalPlayers = sortedPlayers.length;
 
@@ -366,27 +330,21 @@ io.on('connection', (socket) => {
                                 sumChanges += getBaseRatingChange(currentRankIndex + k, totalPlayers);
                             }
                             let avgChange = Math.round(sumChanges / groupSize);
-                            group.forEach(p => {
-                                calculatedChanges.set(p.dbId, avgChange);
-                            });
+                            group.forEach(p => calculatedChanges.set(p.dbId, avgChange));
                             currentRankIndex += groupSize;
                         });
 
                         for (let p of sortedPlayers) {
                             let change = totalPlayers === 1 ? 0 : (calculatedChanges.get(p.dbId) || 0);
+                            p.ratingChange = change;
                             try {
                                 const userDoc = await usersCollection.findOne({ _id: new ObjectId(p.dbId) });
                                 if (userDoc) {
                                     let newRating = Math.max(100, userDoc.rating + change);
-                                    await usersCollection.updateOne(
-                                        { _id: new ObjectId(p.dbId) },
-                                        { $set: { rating: newRating } }
-                                    );
+                                    await usersCollection.updateOne({ _id: new ObjectId(p.dbId) }, { $set: { rating: newRating } });
                                     p.rating = newRating;
                                 }
-                            } catch (err) {
-                                console.error(err);
-                            }
+                            } catch (err) {}
                         }
 
                         room.message = `🏆 試合終了！ 勝者: ${sortedPlayers[0].username} 🎉`;
@@ -401,7 +359,7 @@ io.on('connection', (socket) => {
                     room.isReviewing = false;
                     initGame(room);
                     io.to(roomId).emit('updateState', room);
-                }, 10000);
+                }, 5000);
 
             } else {
                 socket.emit('notify', `計算結果が ${result} です（お題の数 ${room.targetNumber} と一致しません）。`);
@@ -411,33 +369,31 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('leaveGame', async ({ roomId }) => {
+    socket.on('leaveGame', ({ roomId }) => {
         const room = rooms[roomId];
         if (!room) return;
-
         const playerIndex = room.players.findIndex(p => p.id === socket.id);
         if (playerIndex !== -1) {
-            const leavingPlayer = room.players[playerIndex];
-
-            if (room.isGameStarted && !room.isGameOver) {
-                try {
-                    const userDoc = await usersCollection.findOne({ _id: new ObjectId(leavingPlayer.dbId) });
-                    if (userDoc) {
-                        let newRating = Math.max(100, userDoc.rating - 16);
-                        await usersCollection.updateOne(
-                            { _id: new ObjectId(leavingPlayer.dbId) },
-                            { $set: { rating: newRating } }
-                        );
-                        broadcastLobbyData();
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
-            }
-
             room.players.splice(playerIndex, 1);
+            if (room.players.length === 0) {
+                delete rooms[roomId];
+            } else {
+                if (room.hostId === socket.id) {
+                    room.hostId = room.players[0].id;
+                    room.hostName = room.players[0].username;
+                }
+                io.to(roomId).emit('updateState', room);
+            }
+        }
+        broadcastLobbyData();
+    });
 
-            if (!room.isGameStarted) {
+    socket.on('disconnect', () => {
+        for (const roomId in rooms) {
+            const room = rooms[roomId];
+            const playerIndex = room.players.findIndex(p => p.id === socket.id);
+            if (playerIndex !== -1) {
+                room.players.splice(playerIndex, 1);
                 if (room.players.length === 0) {
                     delete rooms[roomId];
                 } else {
@@ -447,113 +403,12 @@ io.on('connection', (socket) => {
                     }
                     io.to(roomId).emit('updateState', room);
                 }
-            } else if (!room.isGameOver) {
-                if (room.players.length < 2) {
-                    room.isGameOver = true;
-                    if (room.players.length === 1) {
-                        room.message = `⚠️ ${leavingPlayer.username} が退出しました。残りのプレイヤー (${room.players[0].username}) の勝利となります！`;
-                        const winner = room.players[0];
-                        try {
-                            const userDoc = await usersCollection.findOne({ _id: new ObjectId(winner.dbId) });
-                            if (userDoc) {
-                                let newRating = userDoc.rating + 15;
-                                await usersCollection.updateOne(
-                                    { _id: new ObjectId(winner.dbId) },
-                                    { $set: { rating: newRating } }
-                                );
-                                winner.rating = newRating;
-                                io.to(roomId).emit('updateState', room);
-                                broadcastLobbyData();
-                            }
-                        } catch (err) {
-                            console.error(err);
-                        }
-                    } else {
-                        room.message = `⚠️ 参加者がいなくなったため試合終了となりました。`;
-                        io.to(roomId).emit('updateState', room);
-                    }
-                    setTimeout(() => { delete rooms[roomId]; }, 5000);
-                } else {
-                    room.message = `⚠️ ${leavingPlayer.username} が退出しました。ゲームを続行します！`;
-                    io.to(roomId).emit('updateState', room);
-                }
-            }
-        }
-        broadcastLobbyData();
-    });
-
-    socket.on('disconnect', async () => {
-        for (const roomId in rooms) {
-            const room = rooms[roomId];
-            const playerIndex = room.players.findIndex(p => p.id === socket.id);
-            if (playerIndex !== -1) {
-                if (!room.isGameStarted) {
-                    room.players.splice(playerIndex, 1);
-                    if (room.players.length === 0) {
-                        delete rooms[roomId];
-                    } else {
-                        if (room.hostId === socket.id) {
-                            room.hostId = room.players[0].id;
-                            room.hostName = room.players[0].username;
-                        }
-                        io.to(roomId).emit('updateState', room);
-                    }
-                } else if (!room.isGameOver) {
-                    const disconnectedPlayer = room.players[playerIndex];
-
-                    try {
-                        const userDoc = await usersCollection.findOne({ _id: new ObjectId(disconnectedPlayer.dbId) });
-                        if (userDoc) {
-                            let newRating = Math.max(100, userDoc.rating - 16);
-                            await usersCollection.updateOne(
-                                { _id: new ObjectId(disconnectedPlayer.dbId) },
-                                { $set: { rating: newRating } }
-                            );
-                            broadcastLobbyData();
-                        }
-                    } catch (err) {
-                        console.error(err);
-                    }
-
-                    room.players.splice(playerIndex, 1);
-
-                    if (room.players.length < 2) {
-                        room.isGameOver = true;
-                        if (room.players.length === 1) {
-                            room.message = `⚠️ ${disconnectedPlayer.username} が切断しました。残りのプレイヤー (${room.players[0].username}) の勝利となります！`;
-                            const winner = room.players[0];
-                            try {
-                                const userDoc = await usersCollection.findOne({ _id: new ObjectId(winner.dbId) });
-                                if (userDoc) {
-                                    let newRating = userDoc.rating + 15;
-                                    await usersCollection.updateOne(
-                                        { _id: new ObjectId(winner.dbId) },
-                                        { $set: { rating: newRating } }
-                                    );
-                                    winner.rating = newRating;
-                                    io.to(roomId).emit('updateState', room);
-                                    broadcastLobbyData();
-                                }
-                            } catch (err) {
-                                console.error(err);
-                            }
-                        } else {
-                            room.message = `⚠️ 参加者がいなくなったため試合終了となりました。`;
-                            io.to(roomId).emit('updateState', room);
-                        }
-                        setTimeout(() => { delete rooms[roomId]; }, 5000);
-                    } else {
-                        room.message = `⚠️ ${disconnectedPlayer.username} が切断しました（脱落）。ゲームを続行します！`;
-                        io.to(roomId).emit('updateState', room);
-                    }
-                }
             }
         }
         broadcastLobbyData();
     });
 });
 
-// 難易度に応じた合成数を生成する関数
 function initGame(room) {
     let min = 10, max = 99;
     if (room.difficulty === 'medium') {
@@ -561,12 +416,9 @@ function initGame(room) {
     } else if (room.difficulty === 'hard') {
         min = 1000; max = 9999;
     }
-
     let num;
-    // 素数ではない（合成数）になるまでループ
     do {
         num = Math.floor(Math.random() * (max - min + 1)) + min;
     } while (isPrime(num));
-
     room.targetNumber = num;
 }
