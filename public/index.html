@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>素因数分解オンライン</title>
     <style>
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: sans-serif; text-align: center; background: #eef6ff; color: #222; margin: 0; padding: 10px; position: relative; overflow-x: hidden; }
         
         h1 { font-size: 1.8rem; margin: 10px 0; color: #004085; }
         h3 { font-size: 1.2rem; color: #0056b3; }
 
-        .calc-btn { width: 50px; height: 45px; font-size: 18px; margin: 3px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; user-select: none; }
-        .calc-btn:active { background: #0056b3; }
+        .calc-btn { width: 60px; height: 50px; font-size: 20px; font-weight: bold; margin: 4px; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; user-select: none; }
+        .calc-btn:active { background: #0056b3; transform: scale(0.95); }
         
-        input, select, button.main-btn { padding: 10px; font-size: 16px; border-radius: 5px; margin: 5px; width: 100%; max-width: 320px; border: 1px solid #ccc; }
+        input, select, button.main-btn { padding: 12px; font-size: 16px; border-radius: 8px; margin: 5px; width: 100%; max-width: 320px; border: 1px solid #ccc; }
         button.main-btn { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button.main-btn:hover { background: #0056b3; }
+        button.main-btn:active { background: #0056b3; }
 
         .screen { display: none; width: 100%; max-width: 600px; margin: 0 auto; }
         .screen.active { display: block; }
@@ -24,8 +24,6 @@
         #message { font-size: 1rem; color: #004085; font-weight: bold; margin: 10px 0; padding: 10px; background: #d1ecf1; border-radius: 8px; display: block; border: 1px solid #bee5eb; }
         .version-tag { position: fixed; bottom: 5px; right: 10px; font-size: 12px; color: #666; background: rgba(255,255,255,0.8); padding: 4px 8px; border-radius: 4px; }
         
-        #pass-status { font-size: 14px; color: #e65100; font-weight: bold; margin: 5px; }
-
         .lobby-container { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; align-items: center; }
         .lobby-box { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: left; }
         .lobby-box h3 { margin-top: 0; color: #0056b3; border-bottom: 2px solid #eef6ff; padding-bottom: 5px; }
@@ -136,21 +134,20 @@
     <div id="screen-game" class="screen">
         <h2 id="room-info" style="font-size: 1.3rem;">ラウンド 1</h2>
         <div id="message">読み込み中...</div>
-        <div id="pass-status"></div>
         
         <div style="margin: 15px 0; background: #eef6ff; padding: 15px; border-radius: 12px; border: 2px dashed #007bff;">
             <div style="font-size: 14px; color: #555;">お題の数</div>
             <div id="target-number" style="font-size: 2.5rem; font-weight: bold; color: #0056b3;">---</div>
         </div>
 
-        <!-- プレイヤーごとのスコア表示 -->
         <div id="scoreboard" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 15px; font-size: 14px; font-weight: bold;"></div>
 
         <div style="margin-top: 10px;">
-            <input type="text" id="expression" style="width: 100%; max-width: 320px; text-align: center; font-size: 20px;" placeholder="例: 2*3*13"><br>
+            <!-- スマホのキーボードが出ないよう readonly に設定 -->
+            <input type="text" id="expression" readonly style="width: 100%; max-width: 320px; text-align: center; font-size: 22px; background: #fff; cursor: default;" placeholder="例: 2*3*13"><br>
             
-            <!-- テンキー -->
-            <div style="margin: 8px auto; max-width: 320px;">
+            <!-- スマホ対応テンキー -->
+            <div style="margin: 10px auto; max-width: 320px;">
                 <div>
                     <button class="calc-btn" onclick="appendExpr('7')">7</button>
                     <button class="calc-btn" onclick="appendExpr('8')">8</button>
@@ -172,11 +169,11 @@
                     <button class="calc-btn" onclick="backspaceExpr()" style="background:#6c757d;">←</button>
                 </div>
                 <div>
-                    <button class="calc-btn" onclick="clearExpr()" style="background:#343a40; width: 162px;">クリア</button>
+                    <button class="calc-btn" onclick="clearExpr()" style="background:#343a40; width: 194px;">クリア</button>
                 </div>
             </div>
 
-            <button id="submit-btn" class="main-btn" onclick="sendCalc()" style="font-size: 16px; background: #28a745; width: 100%; max-width: 320px;">解答を送信する！</button>
+            <button id="submit-btn" class="main-btn" onclick="sendCalc()" style="font-size: 16px; background: #28a745; width: 100%; max-width: 320px; margin-top: 5px;">解答を送信する！</button>
             <button id="pass-btn" class="main-btn" onclick="togglePass()" style="font-size: 14px; background: #ff8c00; width: 100%; max-width: 320px;">パスを希望する</button>
             <button id="giveup-btn" class="main-btn" onclick="confirmLeaveGame()" style="font-size: 14px; background: #dc3545; width: 100%; max-width: 320px;">退出する</button>
             <br>
@@ -184,7 +181,7 @@
         </div>
     </div>
 
-    <div class="version-tag">v2.0.2</div>
+    <div class="version-tag">v2.0.3</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -281,19 +278,16 @@
         function appendExpr(val) {
             const input = document.getElementById('expression');
             input.value += val;
-            input.focus();
         }
 
         function backspaceExpr() {
             const input = document.getElementById('expression');
             input.value = input.value.slice(0, -1);
-            input.focus();
         }
 
         function clearExpr() {
             const input = document.getElementById('expression');
             input.value = '';
-            input.focus();
         }
 
         function sendCalc() {
@@ -344,7 +338,6 @@
             document.getElementById('message').innerText = room.message;
             document.getElementById('target-number').innerText = room.targetNumber;
 
-            // スコアボードの更新
             const scoreboard = document.getElementById('scoreboard');
             scoreboard.innerHTML = room.players.map(p => `
                 <div style="background:white; padding:6px 12px; border-radius:6px; border:1px solid #b8daff;">
@@ -374,7 +367,6 @@
                     document.getElementById('victory-text').innerText = `勝者: ${sorted[0].username} 🎉`;
                 }
 
-                // レート変動結果を表示
                 const ratingBox = document.getElementById('rating-result-box');
                 ratingBox.innerHTML = '<strong>【レート変動】</strong><br>' + room.players.map(p => {
                     const diff = p.ratingChange || 0;
