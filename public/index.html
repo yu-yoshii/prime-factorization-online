@@ -143,10 +143,9 @@
         <div id="scoreboard" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 15px; font-size: 14px; font-weight: bold;"></div>
 
         <div style="margin-top: 10px;">
-            <!-- スマホのキーボードが出ないよう readonly に設定 -->
             <input type="text" id="expression" readonly style="width: 100%; max-width: 320px; text-align: center; font-size: 22px; background: #fff; cursor: default;" placeholder="例: 2*3*13"><br>
             
-            <!-- スマホ対応テンキー -->
+            <!-- テンキー -->
             <div style="margin: 10px auto; max-width: 320px;">
                 <div>
                     <button class="calc-btn" onclick="appendExpr('7')">7</button>
@@ -174,21 +173,19 @@
             </div>
 
             <button id="submit-btn" class="main-btn" onclick="sendCalc()" style="font-size: 16px; background: #28a745; width: 100%; max-width: 320px; margin-top: 5px;">解答を送信する！</button>
-            <button id="pass-btn" class="main-btn" onclick="togglePass()" style="font-size: 14px; background: #ff8c00; width: 100%; max-width: 320px;">パスを希望する</button>
             <button id="giveup-btn" class="main-btn" onclick="confirmLeaveGame()" style="font-size: 14px; background: #dc3545; width: 100%; max-width: 320px;">退出する</button>
             <br>
             <button id="back-lobby-btn" class="main-btn" onclick="returnToLobby()" style="background: #6c757d; display: none; width: 100%; max-width: 320px;">ロビーに戻る</button>
         </div>
     </div>
 
-    <div class="version-tag">v2.0.3</div>
+    <div class="version-tag">v2.0.4</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let currentUser = null;
         let currentRoomId = null;
-        let isPassRequested = false;
 
         window.addEventListener('load', () => {
             const savedUserId = localStorage.getItem('prime_user_id');
@@ -297,20 +294,10 @@
             document.getElementById('expression').value = '';
         }
 
-        function togglePass() {
-            if (!currentRoomId) return;
-            isPassRequested = !isPassRequested;
-            const passBtn = document.getElementById('pass-btn');
-            passBtn.style.background = isPassRequested ? '#6c757d' : '#ff8c00';
-            passBtn.innerText = isPassRequested ? 'パス希望キャンセル' : 'パスを希望する';
-            socket.emit('requestPass', { roomId: currentRoomId, pass: isPassRequested });
-        }
-
         socket.on('notify', (msg) => alert(msg));
 
         socket.on('joinedRoom', (room) => {
             currentRoomId = room.roomId;
-            isPassRequested = false;
             showScreen('screen-room');
             updateRoomView(room);
         });
@@ -346,17 +333,14 @@
             `).join('');
 
             const submitBtn = document.getElementById('submit-btn');
-            const passBtn = document.getElementById('pass-btn');
             const giveupBtn = document.getElementById('giveup-btn');
             const backLobbyBtn = document.getElementById('back-lobby-btn');
             const banner = document.getElementById('victory-banner');
 
             if (room.isReviewing || room.isGameOver) {
                 submitBtn.disabled = true;
-                passBtn.disabled = true;
             } else {
                 submitBtn.disabled = false;
-                passBtn.disabled = false;
             }
 
             if (room.isGameOver) {

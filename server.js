@@ -11,7 +11,7 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const VERSION = "v2.0.2";
+const VERSION = "v2.0.4";
 const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://e221239_db_user:Y0u667841you@cluster0.yxjjzel.mongodb.net/strawberry_kingdom?retryWrites=true&w=majority&appName=Cluster0';
 const DB_NAME = 'prime_factorization_online';
 
@@ -184,7 +184,6 @@ io.on('connection', (socket) => {
                     username: user.username,
                     rating: user.rating,
                     score: 0,
-                    passRequested: false,
                     ratingChange: 0
                 }],
                 targetNumber: 0,
@@ -225,7 +224,6 @@ io.on('connection', (socket) => {
                 username: user.username,
                 rating: user.rating,
                 score: 0,
-                passRequested: false,
                 ratingChange: 0
             });
 
@@ -247,28 +245,7 @@ io.on('connection', (socket) => {
         broadcastLobbyData();
     });
 
-    socket.on('requestPass', ({ roomId, pass }) => {
-        const room = rooms[roomId];
-        if (!room || !room.isGameStarted || room.isReviewing || room.isGameOver) return;
-
-        const player = room.players.find(p => p.id === socket.id);
-        if (!player) return;
-
-        player.passRequested = pass;
-        const passCount = room.players.filter(p => p.passRequested).length;
-        const requiredPass = Math.floor(room.players.length / 2) + 1;
-
-        if (passCount >= requiredPass) {
-            room.players.forEach(p => p.passRequested = false);
-            room.message = '過半数がパスを選択しました。新しい問題に変更します！';
-            initGame(room);
-        } else {
-            room.message = `${player.username} がパスを希望しています (${passCount}/${requiredPass})`;
-        }
-
-        io.to(roomId).emit('updateState', room);
-    });
-
+    // 解答送信処理（すべての参加者から受け付けられるよう修正）
     socket.on('tryCalc', ({ roomId, expression }) => {
         const room = rooms[roomId];
         if (!room || !room.isGameStarted || room.isReviewing || room.isGameOver) return;
@@ -295,7 +272,6 @@ io.on('connection', (socket) => {
             if (result === room.targetNumber) {
                 player.score++;
                 room.isReviewing = true;
-                room.players.forEach(p => p.passRequested = false);
                 room.message = `🎉 ${player.username} が正解！ 「${expression} = ${room.targetNumber}」`;
                 io.to(roomId).emit('updateState', room);
 
