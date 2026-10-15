@@ -11,7 +11,7 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const VERSION = "v2.0.6";
+const VERSION = "v2.0.7";
 const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://e221239_db_user:Y0u667841you@cluster0.yxjjzel.mongodb.net/strawberry_kingdom?retryWrites=true&w=majority&appName=Cluster0';
 const DB_NAME = 'prime_factorization_online';
 
@@ -111,14 +111,17 @@ async function getLobbyInfo() {
             .toArray();
             
         const formattedRanking = ranking.map(u => ({ username: u.username, rating: u.rating }));
-        const roomList = Object.keys(rooms).map(roomId => ({
-            roomId,
-            host: rooms[roomId].hostName,
-            difficulty: rooms[roomId].difficulty,
-            difficultyLabel: rooms[roomId].difficultyLabel,
-            playerCount: rooms[roomId].players.length,
-            status: rooms[roomId].isGameStarted ? '対戦中' : '募集中'
-        }));
+        // 試合終了した部屋はロビーの部屋一覧から除外する
+        const roomList = Object.keys(rooms)
+            .filter(roomId => !rooms[roomId].isGameOver)
+            .map(roomId => ({
+                roomId,
+                host: rooms[roomId].hostName,
+                difficulty: rooms[roomId].difficulty,
+                difficultyLabel: rooms[roomId].difficultyLabel,
+                playerCount: rooms[roomId].players.length,
+                status: rooms[roomId].isGameStarted ? '対戦中' : '募集中'
+            }));
         return { ranking: formattedRanking, roomList };
     } catch (err) {
         return { ranking: [], roomList: [] };
@@ -138,7 +141,6 @@ function getBaseRatingChange(rankIndex, totalPlayers) {
     return -16;
 }
 
-// 退出・切断時のペナルティおよびゲーム終了判定処理を共通化
 async function handlePlayerLeaveOrDisconnect(socketId) {
     for (const roomId in rooms) {
         const room = rooms[roomId];
@@ -147,7 +149,6 @@ async function handlePlayerLeaveOrDisconnect(socketId) {
 
         const leavingPlayer = room.players[playerIndex];
 
-        // 試合が既に始まっており、まだゲームオーバーになっていない場合はペナルティ（レート-16）
         if (room.isGameStarted && !room.isGameOver) {
             leavingPlayer.ratingChange = -16;
             try {
@@ -159,15 +160,12 @@ async function handlePlayerLeaveOrDisconnect(socketId) {
                         { $set: { rating: newRating } }
                     );
                 }
-            } catch (err) {
-                console.error('ペナルティ適用エラー:', err);
-            }
+            } catch (err) {}
         }
 
         room.players.splice(playerIndex, 1);
 
         if (!room.isGameStarted) {
-            // 試合前なら普通にメンバーから削除
             if (room.players.length === 0) {
                 delete rooms[roomId];
             } else {
@@ -178,11 +176,9 @@ async function handlePlayerLeaveOrDisconnect(socketId) {
                 io.to(roomId).emit('updateState', room);
             }
         } else if (!room.isGameOver) {
-            // 試合中の場合
             if (room.players.length < 2) {
                 room.isGameOver = true;
                 if (room.players.length === 1) {
-                    // 残り1人の場合はその人の勝利とし、レートボーナス(+15)を与える
                     const winner = room.players[0];
                     winner.ratingChange = 15;
                     room.message = `⚠️ ${leavingPlayer.username} が退出しました。残りのプレイヤー (${winner.username}) の勝利となります！`;
@@ -196,13 +192,12 @@ async function handlePlayerLeaveOrDisconnect(socketId) {
                             );
                             winner.rating = newRating;
                         }
-                    } catch (err) {
-                        console.error('勝利ボーナス適用エラー:', err);
-                    }
+                    } catch (err) {}
                 } else {
                     room.message = `⚠️ 参加者がいなくなったため試合終了となりました。`;
                 }
                 io.to(roomId).emit('updateState', room);
+                broadcastLobbyData(); // 試合終了時にロビーから即座に消す
                 setTimeout(() => { delete rooms[roomId]; }, 10000);
             } else {
                 room.message = `⚠️ ${leavingPlayer.username} が退出しました。ゲームを続行します！`;
@@ -271,9 +266,7 @@ io.on('connection', (socket) => {
             socket.join(roomId);
             socket.emit('joinedRoom', rooms[roomId]);
             broadcastLobbyData();
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) {}
     });
 
     socket.on('joinRoom', async ({ roomId, userId }) => {
@@ -306,9 +299,7 @@ io.on('connection', (socket) => {
             socket.emit('joinedRoom', room);
             io.to(roomId).emit('updateState', room);
             broadcastLobbyData();
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) {}
     });
 
     socket.on('startGame', ({ roomId }) => {
@@ -355,6 +346,8 @@ io.on('connection', (socket) => {
 
                     if (player.score >= 3) {
                         room.isGameOver = true;
+                        broadcastLobbyData(); // 試合終了時にロビーの部屋リストから削除
+
                         const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score);
                         const totalPlayers = sortedPlayers.length;
 
@@ -400,7 +393,6 @@ io.on('connection', (socket) => {
 
                         room.message = `🏆 試合終了！ 勝者: ${sortedPlayers[0].username} 🎉`;
                         io.to(roomId).emit('updateState', room);
-                        broadcastLobbyData();
                         return;
                     } else {
                         room.currentRound++;

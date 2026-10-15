@@ -12,7 +12,7 @@
         h3 { font-size: 1.2rem; color: #0056b3; }
 
         .calc-btn { width: 60px; height: 50px; font-size: 20px; font-weight: bold; margin: 4px; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; user-select: none; }
-        .calc-btn:active { background: #0056b3; transform: scale(0.95); }
+        .calc-btn:active { background: #0056b3; }
         
         input, select, button.main-btn { padding: 12px; font-size: 16px; border-radius: 8px; margin: 5px; width: 100%; max-width: 320px; border: 1px solid #ccc; }
         button.main-btn { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
@@ -29,6 +29,32 @@
         .lobby-box h3 { margin-top: 0; color: #0056b3; border-bottom: 2px solid #eef6ff; padding-bottom: 5px; }
         .ranking-list, .room-list { max-height: 160px; overflow-y: auto; font-size: 14px; }
         .room-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+
+        @keyframes popUp {
+            0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+            70% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .correct-banner {
+            display: none;
+            position: fixed;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ffc107;
+            color: #212529;
+            padding: 15px 25px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            z-index: 998;
+            border: 3px solid white;
+            animation: popUp 0.3s ease-out forwards;
+            width: 85%;
+            max-width: 380px;
+        }
 
         .victory-banner {
             display: none;
@@ -57,6 +83,12 @@
     </style>
 </head>
 <body>
+
+    <!-- 正解時の全員通知バナー -->
+    <div id="correct-banner" class="correct-banner">
+        🎉 ラウンド正解者！<br>
+        <span id="correct-text" style="font-size: 1.1rem;"></span>
+    </div>
 
     <div id="victory-banner" class="victory-banner">
         🏆 👑 試合終了！ 👑 🏆<br>
@@ -145,30 +177,30 @@
         <div style="margin-top: 10px;">
             <input type="text" id="expression" readonly style="width: 100%; max-width: 320px; text-align: center; font-size: 22px; background: #fff; cursor: default;" placeholder="例: 2*3*13"><br>
             
-            <!-- テンキー -->
+            <!-- テンキー (touchstartイベント対応でラグ解消) -->
             <div style="margin: 10px auto; max-width: 320px;">
                 <div>
-                    <button class="calc-btn" onclick="appendExpr('7')">7</button>
-                    <button class="calc-btn" onclick="appendExpr('8')">8</button>
-                    <button class="calc-btn" onclick="appendExpr('9')">9</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('7'); event.preventDefault();" onclick="appendExpr('7')">7</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('8'); event.preventDefault();" onclick="appendExpr('8')">8</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('9'); event.preventDefault();" onclick="appendExpr('9')">9</button>
                 </div>
                 <div>
-                    <button class="calc-btn" onclick="appendExpr('4')">4</button>
-                    <button class="calc-btn" onclick="appendExpr('5')">5</button>
-                    <button class="calc-btn" onclick="appendExpr('6')">6</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('4'); event.preventDefault();" onclick="appendExpr('4')">4</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('5'); event.preventDefault();" onclick="appendExpr('5')">5</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('6'); event.preventDefault();" onclick="appendExpr('6')">6</button>
                 </div>
                 <div>
-                    <button class="calc-btn" onclick="appendExpr('1')">1</button>
-                    <button class="calc-btn" onclick="appendExpr('2')">2</button>
-                    <button class="calc-btn" onclick="appendExpr('3')">3</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('1'); event.preventDefault();" onclick="appendExpr('1')">1</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('2'); event.preventDefault();" onclick="appendExpr('2')">2</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('3'); event.preventDefault();" onclick="appendExpr('3')">3</button>
                 </div>
                 <div>
-                    <button class="calc-btn" onclick="appendExpr('0')">0</button>
-                    <button class="calc-btn" onclick="appendExpr('*')" style="background:#ff8c00;">*</button>
-                    <button class="calc-btn" onclick="backspaceExpr()" style="background:#6c757d;">←</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('0'); event.preventDefault();" onclick="appendExpr('0')">0</button>
+                    <button class="calc-btn" ontouchstart="appendExpr('*'); event.preventDefault();" onclick="appendExpr('*')" style="background:#ff8c00;">*</button>
+                    <button class="calc-btn" ontouchstart="backspaceExpr(); event.preventDefault();" onclick="backspaceExpr()" style="background:#6c757d;">←</button>
                 </div>
                 <div>
-                    <button class="calc-btn" onclick="clearExpr()" style="background:#343a40; width: 194px;">クリア</button>
+                    <button class="calc-btn" ontouchstart="clearExpr(); event.preventDefault();" onclick="clearExpr()" style="background:#343a40; width: 194px;">クリア</button>
                 </div>
             </div>
 
@@ -179,7 +211,7 @@
         </div>
     </div>
 
-    <div class="version-tag">v2.0.4</div>
+    <div class="version-tag">v2.0.7</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -267,6 +299,7 @@
 
         function returnToLobby() {
             document.getElementById('victory-banner').style.display = 'none';
+            document.getElementById('correct-banner').style.display = 'none';
             currentRoomId = null;
             showScreen('screen-lobby');
             socket.emit('requestLobbyData');
@@ -325,6 +358,16 @@
             document.getElementById('message').innerText = room.message;
             document.getElementById('target-number').innerText = room.targetNumber;
 
+            // 正解者が出たときの通知バナー制御
+            const correctBanner = document.getElementById('correct-banner');
+            const correctText = document.getElementById('correct-text');
+            if (room.isReviewing && room.message.includes('正解')) {
+                correctText.innerText = room.message;
+                correctBanner.style.display = 'block';
+            } else {
+                correctBanner.style.display = 'none';
+            }
+
             const scoreboard = document.getElementById('scoreboard');
             scoreboard.innerHTML = room.players.map(p => `
                 <div style="background:white; padding:6px 12px; border-radius:6px; border:1px solid #b8daff;">
@@ -344,6 +387,7 @@
             }
 
             if (room.isGameOver) {
+                correctBanner.style.display = 'none';
                 giveupBtn.style.display = 'none';
                 backLobbyBtn.style.display = 'inline-block';
                 const sorted = [...room.players].sort((a, b) => b.score - a.score);
