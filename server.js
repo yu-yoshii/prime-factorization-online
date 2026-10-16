@@ -11,7 +11,7 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const VERSION = "v2.0.7";
+const VERSION = "v2.0.8";
 const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://e221239_db_user:Y0u667841you@cluster0.yxjjzel.mongodb.net/strawberry_kingdom?retryWrites=true&w=majority&appName=Cluster0';
 const DB_NAME = 'prime_factorization_online';
 
@@ -111,7 +111,6 @@ async function getLobbyInfo() {
             .toArray();
             
         const formattedRanking = ranking.map(u => ({ username: u.username, rating: u.rating }));
-        // 試合終了した部屋はロビーの部屋一覧から除外する
         const roomList = Object.keys(rooms)
             .filter(roomId => !rooms[roomId].isGameOver)
             .map(roomId => ({
@@ -133,12 +132,26 @@ async function broadcastLobbyData() {
     io.emit('lobbyData', data);
 }
 
+// プレイヤー人数に応じた正しいレート変動量の設計
 function getBaseRatingChange(rankIndex, totalPlayers) {
-    if (totalPlayers === 2) return rankIndex === 0 ? 24 : -12;
-    if (rankIndex === 0) return 24;
-    if (rankIndex === 1) return 4;
-    if (rankIndex === 2) return -8;
-    return -16;
+    if (totalPlayers === 2) {
+        return rankIndex === 0 ? 24 : -24;
+    }
+    if (totalPlayers === 3) {
+        // 1位: +24, 2位: +4, 3位: -28
+        if (rankIndex === 0) return 24;
+        if (rankIndex === 1) return 4;
+        return -28;
+    }
+    if (totalPlayers === 4) {
+        // 1位: +24, 2位: +8, 3位: -12, 4位: -20
+        if (rankIndex === 0) return 24;
+        if (rankIndex === 1) return 8;
+        if (rankIndex === 2) return -12;
+        return -20;
+    }
+    // フォールバック
+    return rankIndex === 0 ? 24 : -16;
 }
 
 async function handlePlayerLeaveOrDisconnect(socketId) {
@@ -150,11 +163,11 @@ async function handlePlayerLeaveOrDisconnect(socketId) {
         const leavingPlayer = room.players[playerIndex];
 
         if (room.isGameStarted && !room.isGameOver) {
-            leavingPlayer.ratingChange = -16;
+            leavingPlayer.ratingChange = -20;
             try {
                 const userDoc = await usersCollection.findOne({ _id: new ObjectId(leavingPlayer.dbId) });
                 if (userDoc) {
-                    let newRating = Math.max(100, userDoc.rating - 16);
+                    let newRating = Math.max(100, userDoc.rating - 20);
                     await usersCollection.updateOne(
                         { _id: new ObjectId(leavingPlayer.dbId) },
                         { $set: { rating: newRating } }
@@ -197,7 +210,7 @@ async function handlePlayerLeaveOrDisconnect(socketId) {
                     room.message = `⚠️ 参加者がいなくなったため試合終了となりました。`;
                 }
                 io.to(roomId).emit('updateState', room);
-                broadcastLobbyData(); // 試合終了時にロビーから即座に消す
+                broadcastLobbyData();
                 setTimeout(() => { delete rooms[roomId]; }, 10000);
             } else {
                 room.message = `⚠️ ${leavingPlayer.username} が退出しました。ゲームを続行します！`;
@@ -346,7 +359,7 @@ io.on('connection', (socket) => {
 
                     if (player.score >= 3) {
                         room.isGameOver = true;
-                        broadcastLobbyData(); // 試合終了時にロビーの部屋リストから削除
+                        broadcastLobbyData();
 
                         const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score);
                         const totalPlayers = sortedPlayers.length;

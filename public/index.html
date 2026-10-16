@@ -84,7 +84,6 @@
 </head>
 <body>
 
-    <!-- 正解時の全員通知バナー -->
     <div id="correct-banner" class="correct-banner">
         🎉 ラウンド正解者！<br>
         <span id="correct-text" style="font-size: 1.1rem;"></span>
@@ -177,7 +176,6 @@
         <div style="margin-top: 10px;">
             <input type="text" id="expression" readonly style="width: 100%; max-width: 320px; text-align: center; font-size: 22px; background: #fff; cursor: default;" placeholder="例: 2*3*13"><br>
             
-            <!-- テンキー (touchstartイベント対応でラグ解消) -->
             <div style="margin: 10px auto; max-width: 320px;">
                 <div>
                     <button class="calc-btn" ontouchstart="appendExpr('7'); event.preventDefault();" onclick="appendExpr('7')">7</button>
@@ -211,13 +209,14 @@
         </div>
     </div>
 
-    <div class="version-tag">v2.0.7</div>
+    <div class="version-tag">v2.0.8</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let currentUser = null;
         let currentRoomId = null;
+        let lastTargetNumber = null; // ラウンド切り替え検知用
 
         window.addEventListener('load', () => {
             const savedUserId = localStorage.getItem('prime_user_id');
@@ -331,6 +330,7 @@
 
         socket.on('joinedRoom', (room) => {
             currentRoomId = room.roomId;
+            lastTargetNumber = null;
             showScreen('screen-room');
             updateRoomView(room);
         });
@@ -358,7 +358,12 @@
             document.getElementById('message').innerText = room.message;
             document.getElementById('target-number').innerText = room.targetNumber;
 
-            // 正解者が出たときの通知バナー制御
+            // お題の数字が変わった（次のラウンドや新しい問題に進んだ）ときに入力欄を必ずリセットする
+            if (lastTargetNumber !== room.targetNumber) {
+                clearExpr();
+                lastTargetNumber = room.targetNumber;
+            }
+
             const correctBanner = document.getElementById('correct-banner');
             const correctText = document.getElementById('correct-text');
             if (room.isReviewing && room.message.includes('正解')) {
